@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.glassmorphism {
+  background: rgba(255, 255, 255, 0.06); /* ↓ from 0.1 */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border:1px solid rgba(255,255,255,0.2);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar { width:8px; height:8px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius:10px; }
+::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.2); border-radius:10px; }
+::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.4)!important; }
+
+.scrollbar-style {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.3) rgba(255,255,255,0.05);
+}
+
+/* Animations (if still using) */
+@keyframes cloudScroll {0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+.animate-clouds { animation:cloudScroll 60s linear infinite; }
+@keyframes starTwinkle {0%,100%{opacity:0.4;}50%{opacity:0.8;}}
+.animate-stars { animation:starTwinkle 4s ease-in-out infinite; }
+
+.bg-stars {
+  background: url('/stars.svg') repeat top center;
+  animation: moveStars 200s linear infinite;
+}
+
+.bg-clouds {
+  background: url('/clouds.svg') repeat-x center;
+  animation: moveClouds 60s linear infinite;
+  opacity: 0.2;
+}
+
+@keyframes moveStars {
+  from { background-position: 0 0; }
+  to { background-position: 10000px 0; }
+}
+
+@keyframes moveClouds {
+  from { background-position-x: 0; }
+  to { background-position-x: -1000px; }
+}
+
+.spinner {
+  width: 40px; height: 40px;
+  border: 4px solid rgba(255,255,255,0.3);
+  border-top: 4px solid #fff;
+  border-radius: 50%; animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
