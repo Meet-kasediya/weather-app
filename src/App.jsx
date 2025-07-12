@@ -1,9 +1,5 @@
-
 import { MapContainer, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-
-
-
 import { useState, useEffect } from "react";
 import axios from "axios";
 import debounce from "lodash.debounce";
@@ -57,11 +53,6 @@ const [newsArticles, setNewsArticles] = useState([]);
 
 const [pmData, setPmData] = useState([]);
 const [mapLayer, setMapLayer] = useState("clouds_new");
-
-
-
-
-
 
 useEffect(() => {
   const timeoutId = setTimeout(() => {
@@ -163,7 +154,6 @@ const fetchForecast = async (lat, lon) => {
     const hourlyData = res.data.list.slice(0, 8);
     setHourly(hourlyData);
 
-    // Map to wind chart data (next 12 hours)
     const windPoints = res.data.list.slice(0, 12).map((hour) => ({
       time: new Date(hour.dt_txt).toLocaleTimeString([], {
         hour: "2-digit",
@@ -207,7 +197,7 @@ const fetchAirQuality = async (lat, lon) => {
         hour: "2-digit",
         minute: "2-digit",
       }),
-      uvi: entry.main.aqi * 2, // approximate UV index scale (since UVI is not directly provided)
+      uvi: entry.main.aqi * 2,
     }));
     setUvData(currentData);
     const aqiRaw = res.data.list[0];
@@ -308,17 +298,12 @@ const formatTime = (timestamp, offset) => {
 
 
 
-
-
-
-
-
 const hourlyPrecipData = hourly.map((item) => ({
   time: new Date(item.dt_txt).toLocaleTimeString([], {
     hour: "numeric",
     hour12: true,
   }),
-  pop: Math.round(item.pop * 100), // convert to percentage
+  pop: Math.round(item.pop * 100), 
 }));
 
 const hourlyVisibilityData = hourly.map((item) => ({
@@ -326,7 +311,7 @@ const hourlyVisibilityData = hourly.map((item) => ({
     hour: "numeric",
     hour12: true,
   }),
-  visibility: item.visibility / 1000, // convert to km
+  visibility: item.visibility / 1000,  
 }));
 
 const hourlyPressureData = hourly.map((item) => ({
@@ -342,7 +327,7 @@ const hourlyWindGustData = hourly.map((item) => ({
     hour: "numeric",
     hour12: true,
   }),
-  gust: item.wind.gust ?? item.wind.speed, // fallback to speed
+  gust: item.wind.gust ?? item.wind.speed,  
 }));
 
 const hourlyCloudData = hourly.map((item) => ({
@@ -350,31 +335,31 @@ const hourlyCloudData = hourly.map((item) => ({
     hour: "numeric",
     hour12: true,
   }),
-  clouds: item.clouds.all, // percentage
+  clouds: item.clouds.all,  
 }));
 
 
-// Dew Point
+ 
 const hourlyDewData = hourly.map((item) => ({
   time: new Date(item.dt_txt).toLocaleTimeString([], {
     hour: "numeric",
     hour12: true,
   }),
-  dew: item.main.temp - ((100 - item.main.humidity) / 5), // approximate dew point
+  dew: item.main.temp - ((100 - item.main.humidity) / 5),  
 }));
 
 
 
-// Wind Gusts
+ 
 const hourlyGustData = hourly.map((item) => ({
   time: new Date(item.dt_txt).toLocaleTimeString([], {
     hour: "numeric",
     hour12: true,
   }),
-  gust: item.wind.gust || 0, // gust speed
+  gust: item.wind.gust || 0, 
 }));
 
-// Wind Direction
+ 
 const hourlyWindDirData = hourly.map((item) => ({
   time: new Date(item.dt_txt).toLocaleTimeString([], {
     hour: "numeric",
@@ -383,7 +368,7 @@ const hourlyWindDirData = hourly.map((item) => ({
   direction: item.wind.deg,
 }));
 
-// Min/Max Temperatures (same as temp chart, just shown as area/band)
+ 
 const hourlyMinMaxData = hourly.map((item) => ({
   time: new Date(item.dt_txt).toLocaleTimeString([], {
     hour: "numeric",
@@ -392,25 +377,6 @@ const hourlyMinMaxData = hourly.map((item) => ({
   min: item.main.temp_min,
   max: item.main.temp_max,
 }));
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   const mapToAnimatedIcon = (main, icon) => {
     const isDay = icon.includes("d");
@@ -548,25 +514,6 @@ return (
             </motion.div>
           )}
         </AnimatePresence>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 <h3 className="text-lg font-semibold text-white mt-8 mb-2 text-center">🕒 Upcoming Hours</h3>
 
         {/* Hourly Cards */}
@@ -615,22 +562,6 @@ return (
           </div>
         )}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
  {/* Chart tabs */}
 
 <div className="pt-10 flex justify-center flex-wrap gap-2 mb-4">
@@ -648,15 +579,8 @@ return (
   ))}
 </div>
 
-
-
-
-
  {/* Chart Display */}
   <div className="rounded-lg pb-10">
-
-
-
 
 {activeChart === "hourlyForecast" && hourly.length > 0 && (
   <div className="w-full h-64">
@@ -697,12 +621,8 @@ return (
   </div>
 )}
 
-
-
-
 {activeChart === "windSpeed" && windData.length > 0 && (
   <div className="w-full h-64"> 
-
 
 
         {windData.length > 0 && (
@@ -741,11 +661,6 @@ return (
         </div>
 )}
 
-
-
-
-
-
 {activeChart === "windGusts" && hourly.length > 0 && (
   <div className="w-full h-64">
 {hourly.length > 0 && (
@@ -780,15 +695,8 @@ return (
     </ResponsiveContainer>
   </div>
 )}
-
-
-
-
 </div>
 )}
-
-
-
 
 {activeChart === "windDir" && hourly.length > 0 && (
   <div className="w-full h-64">
@@ -1091,7 +999,7 @@ return (
         <Line
           type="monotone"
           dataKey="pm25"
-          stroke="#10b981" // Tailwind green-500
+          stroke="#10b981"  
           strokeWidth={2}
           dot={{ r: 3 }}
           name="PM2.5"
@@ -1099,7 +1007,7 @@ return (
         <Line
           type="monotone"
           dataKey="pm10"
-          stroke="#ef4444" // Tailwind red-500
+          stroke="#ef4444" 
           strokeWidth={2}
           dot={{ r: 3 }}
           name="PM10"
@@ -1142,12 +1050,12 @@ return (
         scrollWheelZoom={false}
         style={{ height: "100%", width: "100%" }}
       >
-        {/* Base OpenStreetMap Layer */}
+   
         <TileLayer
           attribution='&copy; <a href="https://osm.org">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {/* Weather Overlay Layer */}
+   
         <TileLayer
           url={`https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=${weatherApiKey}`}
           opacity={0.5}
@@ -1163,7 +1071,7 @@ return (
 )}
 
 
-{/* 🌤️ SMART INSIGHT */}
+ 
 {summary && (
   <div className="w-full max-w-2xl mt-6 p-4 rounded-xl bg-white/10 backdrop-blur text-white shadow-lg">
     <h2 className="text-xl font-bold mb-2">Weather Insight</h2>
@@ -1171,7 +1079,7 @@ return (
   </div>
 )}
 
-{/* 📰 WEATHER NEWS */}
+ 
 {newsArticles.length > 0 && (
   <div className="w-full max-w-2xl mt-6 p-4 rounded-xl bg-white/10 backdrop-blur text-white shadow-lg">
     <h2 className="text-xl font-bold mb-4">Weather News</h2>
