@@ -1,15 +1,29 @@
+
+import { MapContainer, TileLayer } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+
+
+
 import { useState, useEffect } from "react";
 import axios from "axios";
 import debounce from "lodash.debounce";
 import AnimatedWeatherIcon from "react-animated-weather";
 import { motion, AnimatePresence } from "framer-motion";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 import "./index.css";
 import { useCallback } from "react";
 
 const weatherApiKey = import.meta.env.VITE_WEATHER_API_KEY;
-
-
+const NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY;
 
 const App = () => {
   const [query, setQuery] = useState("");
@@ -19,25 +33,30 @@ const App = () => {
   const [hourly, setHourly] = useState([]);
   const [airQuality, setAirQuality] = useState(null);
   const [unit, setUnit] = useState("metric");
-  
-const [windData, setWindData] = useState([]);
+  const [windData, setWindData] = useState([]);
+  const [uvData, setUvData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeChart, setActiveChart] = useState("windSpeed")
+  const tabs = [
+     { key: "hourlyForecast", label: "Hourly Forecast" },
+  { key: "windSpeed", label: "Wind Speed" },
+  { key: "windGusts", label: "Gusts" },
+  { key: "windDir", label: "Direction" },
+  { key: "uv", label: "UV Index" },
+  { key: "precip", label: "Precipitation" },
+  { key: "visibility", label: "Visibility" },
+  { key: "pressure", label: "Pressure" },
+  { key: "clouds", label: "Clouds" },
+  { key: "temp", label: "Temp Min/Max" },
+   
+];
 
-const [uvData, setUvData] = useState([]);
 
+const [summary, setSummary] = useState("");
+const [newsArticles, setNewsArticles] = useState([]);
 
-
-const [loading, setLoading] = useState(true);
-
-
-
-
-
-
-
-
-
-
-
+const [pmData, setPmData] = useState([]);
+const [mapLayer, setMapLayer] = useState("clouds_new");
 
 
 
@@ -84,6 +103,50 @@ useEffect(() => {
   }
 }, [unit]);
 
+useEffect(() => {
+  if (forecast.length > 0) {
+    const today = forecast[0];
+
+    const temp = Math.round(today.main.temp);
+    const condition = today.weather[0].description;
+    const wind = Math.round(today.wind.speed);
+    const gust = Math.round(today.wind.gust || 0);
+    const pop = Math.round((today.pop || 0) * 100);
+
+    let s = `Today will be ${condition} with a temperature of around ${temp}${tempSymbol}. `;
+
+    if (wind >= 15) {
+      s += `Winds at ${wind} km/h`;
+      if (gust > wind) s += `, gusting to ${gust} km/h`;
+      s += `. `;
+    } else {
+      s += `Light winds around ${wind} km/h. `;
+    }
+
+    if (pop > 40) {
+      s += `Chance of rain is ${pop}%.`;
+    }
+
+    setSummary(s);
+  }
+}, [forecast]);
+
+
+useEffect(() => {
+  const fetchNews = async () => {
+    try {
+      const res = await fetch(
+        `https://newsapi.org/v2/everything?q=weather&language=en&pageSize=5&sortBy=publishedAt&apiKey=${import.meta.env.VITE_NEWS_API_KEY}`
+      );
+      const data = await res.json();
+      if (data.articles) setNewsArticles(data.articles);
+    } catch (err) {
+      console.error("Failed to fetch weather news:", err);
+    }
+  };
+
+  fetchNews();
+}, []);
 
 
 
@@ -116,6 +179,22 @@ const fetchForecast = async (lat, lon) => {
 };
 
 
+const getAQIDescription = (index) => {
+  switch (index) {
+    case 1:
+      return { label: "Good", color: "bg-green-500" };
+    case 2:
+      return { label: "Fair", color: "bg-yellow-400" };
+    case 3:
+      return { label: "Moderate", color: "bg-orange-400" };
+    case 4:
+      return { label: "Poor", color: "bg-red-500" };
+    case 5:
+      return { label: "Very Poor", color: "bg-purple-700" };
+    default:
+      return { label: "Unknown", color: "bg-gray-500" };
+  }
+};
 
 
 const fetchAirQuality = async (lat, lon) => {
@@ -131,7 +210,23 @@ const fetchAirQuality = async (lat, lon) => {
       uvi: entry.main.aqi * 2, // approximate UV index scale (since UVI is not directly provided)
     }));
     setUvData(currentData);
-    setAirQuality(res.data.list[0]); // still keeps this for air quality display
+    const aqiRaw = res.data.list[0];
+setAirQuality({
+  index: aqiRaw.main.aqi,
+  components: aqiRaw.components,
+  time: aqiRaw.dt,
+});
+const pmSeries = res.data.list.slice(0, 12).map((entry) => ({
+  time: new Date(entry.dt * 1000).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  }),
+  pm25: entry.components.pm2_5,
+  pm10: entry.components.pm10,
+}));
+setPmData(pmSeries);
+
+
   } catch (err) {
     console.error("Air quality error:", err);
   }
@@ -344,6 +439,9 @@ const hourlyMinMaxData = hourly.map((item) => ({
   const backgroundClass = weather ? getBackgroundClass(weather.weather[0].main) : "from-[#0f2027] via-[#203a43] to-[#2c5364]";
   const tempSymbol = unit === "metric" ? "°C" : "°F";
 
+
+  
+
 const LoadingScreen = () => (
   <motion.div
     className="flex h-screen w-screen flex-col items-center justify-center bg-gradient-to-br from-[#0f2027] via-[#203a43] to-[#2c5364] text-white"
@@ -438,13 +536,35 @@ return (
 
               {airQuality && (
                 <div className="mt-4 text-sm text-gray-300">
-                  <h3 className="text-white font-semibold mb-1">Air Quality Index: {airQuality.main.aqi}</h3>
-                  <p>PM2.5: {airQuality.components.pm2_5}, PM10: {airQuality.components.pm10}, CO: {airQuality.components.co}</p>
+<h3 className="text-white font-semibold mb-1">Air Quality Index: {airQuality.index}</h3>
+<p>
+  PM2.5: {airQuality.components.pm2_5} µg/m³, 
+  PM10: {airQuality.components.pm10} µg/m³, 
+  CO: {airQuality.components.co} µg/m³
+</p>
+
                 </div>
               )}
             </motion.div>
           )}
         </AnimatePresence>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 <h3 className="text-lg font-semibold text-white mt-8 mb-2 text-center">🕒 Upcoming Hours</h3>
@@ -500,8 +620,46 @@ return (
 
 
 
-{hourly.length > 0 && (
-  <div className="mt-10 mb-10 w-full h-64">
+
+
+
+
+
+
+
+
+
+
+
+ {/* Chart tabs */}
+
+<div className="pt-10 flex justify-center flex-wrap gap-2 mb-4">
+  {tabs.map((tab) => (
+    <button
+      key={tab.key}
+      onClick={() => setActiveChart(tab.key)}
+      className={`px-4 py-2 mx-1 rounded-xl border border-white/20 backdrop-blur-md bg-white/10 text-white hover:bg-white/20 transition-all duration-200 ${
+        activeChart === tab.key ? "border-white/40 bg-white/20 shadow-md" : ""
+      }`}
+
+    >
+      {tab.label}
+    </button>
+  ))}
+</div>
+
+
+
+
+
+ {/* Chart Display */}
+  <div className="rounded-lg pb-10">
+
+
+
+
+{activeChart === "hourlyForecast" && hourly.length > 0 && (
+  <div className="w-full h-64">
     <h3 className="text-lg font-semibold text-white mb-2 text-center">🌡 Hourly Forecast</h3>
     <ResponsiveContainer width="100%" height="100%">
       <LineChart
@@ -515,18 +673,18 @@ return (
         margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
       >
         <XAxis dataKey="time" stroke="#ccc" />
-<Tooltip
-  contentStyle={{
-    backgroundColor: "#1f2937",
-    border: "none",
-    borderRadius: "8px",
-    color: "white",
-    fontSize: "14px",
-  }}
-  labelStyle={{ color: "#9ca3af" }}
-  formatter={(value) => [`${Math.round(value)}${tempSymbol}`, "Temp"]}
-/>
-
+        <YAxis stroke="#ccc" />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: "#1f2937",
+            border: "none",
+            borderRadius: "8px",
+            color: "white",
+            fontSize: "14px",
+          }}
+          labelStyle={{ color: "#9ca3af" }}
+          formatter={(value) => [`${Math.round(value)}${tempSymbol}`, "Temp"]}
+        />
         <Line
           type="monotone"
           dataKey="temp"
@@ -540,6 +698,10 @@ return (
 )}
 
 
+
+
+{activeChart === "windSpeed" && windData.length > 0 && (
+  <div className="w-full h-64"> 
 
 
 
@@ -576,6 +738,16 @@ return (
   </div>
 )}
 
+        </div>
+)}
+
+
+
+
+
+
+{activeChart === "windGusts" && hourly.length > 0 && (
+  <div className="w-full h-64">
 {hourly.length > 0 && (
   <div className="mt-10 mb-10 w-full h-64">
     <h3 className="text-lg font-semibold text-white mb-2 text-center">🌪 Wind Gusts ({unit === "metric" ? "m/s" : "mph"})</h3>
@@ -610,6 +782,16 @@ return (
 )}
 
 
+
+
+</div>
+)}
+
+
+
+
+{activeChart === "windDir" && hourly.length > 0 && (
+  <div className="w-full h-64">
 {hourly.length > 0 && (
   <div className="mt-10 w-full h-64">
     <h3 className="text-lg font-semibold text-white mb-2 text-center">🧭 Wind Direction (°)</h3>
@@ -629,7 +811,15 @@ return (
 )}
 
 
+</div>
+)}
 
+
+
+
+
+{activeChart === "uv" && hourly.length > 0 && (
+  <div className="w-full h-64">
 {uvData.length > 0 && (
   <div className="mt-10 mb-10 w-full h-64">
     <h3 className="text-lg font-semibold text-white mb-2 text-center">🌞 UV Index (est.)</h3>
@@ -662,6 +852,13 @@ return (
     </ResponsiveContainer>
   </div>
 )}
+</div>
+)}
+
+
+
+{activeChart === "precip" && hourly.length > 0 && (
+  <div className="w-full h-64">
 
 
 {hourly.length > 0 && (
@@ -696,8 +893,13 @@ return (
     </ResponsiveContainer>
   </div>
 )}
+</div>
+)}
 
 
+
+{activeChart === "visibility" && hourly.length > 0 && (
+  <div className="w-full h-64">
 
 {hourly.length > 0 && (
   <div className="mt-10 mb-10 w-full h-64">
@@ -732,8 +934,13 @@ return (
   </div>
 )}
 
+</div>
+)}
 
 
+
+{activeChart === "pressure" && hourly.length > 0 && (
+  <div className="w-full h-64">
 
 {hourly.length > 0 && (
   <div className="mt-10 mb-10 w-full h-64">
@@ -768,9 +975,12 @@ return (
   </div>
 )}
 
+</div>
+)}
 
 
-
+{activeChart === "clouds" && hourly.length > 0 && (
+  <div className="w-full h-64">
 {hourly.length > 0 && (
   <div className="mt-10 mb-10 w-full h-64">
     <h3 className="text-lg font-semibold text-white mb-2 text-center">☁️ Cloud Coverage (%)</h3>
@@ -805,8 +1015,11 @@ return (
 )}
 
 
+</div>
+)}
 
-
+{activeChart === "temp" && hourly.length > 0 && (
+  <div className="w-full h-64">
 {hourly.length > 0 && (
   <div className="mt-10 w-full h-64">
     <h3 className="text-lg font-semibold text-white mb-2 text-center">📉 Min / Max Temperature</h3>
@@ -826,11 +1039,159 @@ return (
 )}
 
 
+</div>
+)}
 
 
 
+</div>
+{airQuality && (
+  <div className="w-full max-w-2xl mt-6 p-5 rounded-xl bg-white/10 backdrop-blur text-white shadow-lg">
+    <h2 className="text-xl font-bold mb-3">Air Quality Index</h2>
+    
+    <div className="flex items-center gap-3 mb-4">
+      <div className={`w-4 h-4 rounded-full ${getAQIDescription(airQuality.index).color}`} />
+      <p className="text-sm font-semibold">
+        AQI: {airQuality.index} ({getAQIDescription(airQuality.index).label})
+      </p>
+    </div>
+
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+      <div><span className="font-semibold">PM2.5:</span> {airQuality.components.pm2_5} µg/m³</div>
+      <div><span className="font-semibold">PM10:</span> {airQuality.components.pm10} µg/m³</div>
+      <div><span className="font-semibold">O₃:</span> {airQuality.components.o3} µg/m³</div>
+      <div><span className="font-semibold">NO₂:</span> {airQuality.components.no2} µg/m³</div>
+      <div><span className="font-semibold">SO₂:</span> {airQuality.components.so2} µg/m³</div>
+      <div><span className="font-semibold">CO:</span> {airQuality.components.co} µg/m³</div>
+    </div>
+    
+    <p className="text-xs mt-4 opacity-70">
+      Last updated: {formatTime(airQuality.time, weather.timezone)}
+    </p>
+  </div>
+)}
+
+{pmData.length > 0 && (
+  <div className="w-full max-w-2xl mt-8  p-4  rounded-2xl  ">
+    <h3 className="text-lg font-semibold text-white mb-4 text-center">Air Quality (PM2.5 & PM10)</h3>
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart
+  data={pmData}
+  margin={{ top: 0, right: 60, left: 10, bottom: 0 }}
+>
+        <CartesianGrid strokeDasharray="3 3" stroke="#555" />
+        <XAxis dataKey="time" stroke="#ccc" />
+        <YAxis stroke="#ccc" />
+        <Tooltip
+          contentStyle={{ backgroundColor: "#1f2937", border: "none" }}
+          labelStyle={{ color: "#fff" }}
+          formatter={(value, name) => [`${value.toFixed(1)} µg/m³`, name.toUpperCase()]}
+        />
+        <Legend />
+        <Line
+          type="monotone"
+          dataKey="pm25"
+          stroke="#10b981" // Tailwind green-500
+          strokeWidth={2}
+          dot={{ r: 3 }}
+          name="PM2.5"
+        />
+        <Line
+          type="monotone"
+          dataKey="pm10"
+          stroke="#ef4444" // Tailwind red-500
+          strokeWidth={2}
+          dot={{ r: 3 }}
+          name="PM10"
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+)}
+<div className="glassmorphism p-2 rounded-xl shadow-md w-fit mx-auto mb-6">
+  <div className="flex gap-2">
+    {[
+      { label: "Clouds", value: "clouds_new" },
+      { label: "Temp", value: "temp_new" },
+      { label: "Wind", value: "wind_new" },
+      { label: "Precip", value: "precipitation_new" },
+      { label: "Pressure", value: "pressure_new" },
+    ].map(({ label, value }) => (
+      <button
+        key={value}
+        onClick={() => setMapLayer(value)}
+        className={`px-3 py-1 rounded-lg text-sm font-medium transition backdrop-blur-md ${
+          mapLayer === value
+            ? "bg-white/20 text-white shadow-inner"
+            : "bg-white/5 text-gray-300 hover:bg-white/10"
+        }`}
+      >
+        {label}
+      </button>
+    ))}
+  </div>
+</div>
+
+{weather && (
+  <div className="mt-8">
+    <h3 className="text-lg font-semibold text-white mb-2">Weather Map</h3>
+    <div className="h-[400px] rounded-2xl overflow-hidden shadow-md">
+      <MapContainer
+        center={[weather.coord.lat, weather.coord.lon]}
+        zoom={6}
+        scrollWheelZoom={false}
+        style={{ height: "100%", width: "100%" }}
+      >
+        {/* Base OpenStreetMap Layer */}
+        <TileLayer
+          attribution='&copy; <a href="https://osm.org">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {/* Weather Overlay Layer */}
+        <TileLayer
+          url={`https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=${weatherApiKey}`}
+          opacity={0.5}
+        />
+        <TileLayer
+  url={`https://tile.openweathermap.org/map/${mapLayer}/{z}/{x}/{y}.png?appid=${weatherApiKey}`}
+  opacity={0.5}
+/>
+
+      </MapContainer>
+    </div>
+  </div>
+)}
 
 
+{/* 🌤️ SMART INSIGHT */}
+{summary && (
+  <div className="w-full max-w-2xl mt-6 p-4 rounded-xl bg-white/10 backdrop-blur text-white shadow-lg">
+    <h2 className="text-xl font-bold mb-2">Weather Insight</h2>
+    <p className="text-sm leading-relaxed">{summary}</p>
+  </div>
+)}
+
+{/* 📰 WEATHER NEWS */}
+{newsArticles.length > 0 && (
+  <div className="w-full max-w-2xl mt-6 p-4 rounded-xl bg-white/10 backdrop-blur text-white shadow-lg">
+    <h2 className="text-xl font-bold mb-4">Weather News</h2>
+    <ul className="space-y-4">
+      {newsArticles.map((article, i) => (
+        <li key={i}>
+          <a
+            href={article.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block hover:underline"
+          >
+            <p className="text-md font-semibold">{article.title}</p>
+            <p className="text-sm opacity-80">{article.source.name}</p>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
 
       </div>
     </div>
