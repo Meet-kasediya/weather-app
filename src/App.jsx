@@ -1016,8 +1016,8 @@ return (
     </ResponsiveContainer>
   </div>
 )}
-<div className="glassmorphism p-2 rounded-xl shadow-md w-fit mx-auto mb-6">
-  <div className="flex gap-2">
+<div className="w-full overflow-x-auto mb-6">
+  <div className="glassmorphism p-2 rounded-xl shadow-md inline-flex gap-2 min-w-max mx-auto">
     {[
       { label: "Clouds", value: "clouds_new" },
       { label: "Temp", value: "temp_new" },
@@ -1028,7 +1028,7 @@ return (
       <button
         key={value}
         onClick={() => setMapLayer(value)}
-        className={`px-3 py-1 rounded-lg text-sm font-medium transition backdrop-blur-md ${
+        className={`px-3 py-1 rounded-lg text-sm font-medium transition backdrop-blur-md whitespace-nowrap ${
           mapLayer === value
             ? "bg-white/20 text-white shadow-inner"
             : "bg-white/5 text-gray-300 hover:bg-white/10"
@@ -1039,6 +1039,7 @@ return (
     ))}
   </div>
 </div>
+
 
 {weather && (
   <div className="mt-8">
